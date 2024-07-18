@@ -1,0 +1,57 @@
+name: Run Tests
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+
+  test:
+    runs-on: macos-latest
+    #sequence of tasks called
+    steps:
+      - uses: actions/checkout@v1
+      # Setup a flutter environment.
+      # https://github.com/marketplace/actions/flutter-action
+      - uses: subosito/flutter-action@v1
+        with:
+          #flutter-version: '2.2.3'
+          channel: 'beta'
+      - run: flutter pub get
+      - run: cp lib/.env.dart.example lib/.env.dart
+      - run: flutter analyze
+
+  drive_ios:
+    strategy:
+      matrix:
+        device:
+          - "iPhone 11 Pro (14.4)"
+          - "iPad Pro (9.7-inch) (14.4)"
+      fail-fast: false
+    runs-on: macos-latest
+    needs: test
+    steps:
+      - name: List all simulators
+        run: xcrun instruments -s
+      # get UUID  simulator and boot a simulator on mac from  command line
+      - name: Start Simulator
+        run: |
+          UDID=$(
+            xcrun instruments -s |
+            awk \
+              -F ' *[][]' \
+              -v 'device=${{ matrix.device }}' \
+              '$1 == device { print $2 }'
+          )
+          xcrun simctl boot "${UDID:?No Simulator with this name found}"
+      - uses: actions/checkout@v1
+      - uses: subosito/flutter-action@v1
+        with:
+          #flutter-version: '2.2.3'
+          channel: 'beta'
+      - name: Setup App
+        run: |
+          cp lib/.env.dart.example lib/.env.dart
+          echo ${{secrets.firebase_ios}} | base64 --decode > ios/Runner/GoogleService-Info.plist
+      - name: Run iOS Flutter Driver tests
+        run: flutter drive --target=test_driver/login_it.dart

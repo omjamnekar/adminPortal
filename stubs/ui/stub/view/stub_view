@@ -1,0 +1,37 @@
+import 'package:flutter/material.dart';
+import 'package:invoiceninja_flutter/ui/app/scrollable_listview.dart';
+import 'package:invoiceninja_flutter/ui/stub/view/stub_view_vm.dart';
+import 'package:invoiceninja_flutter/ui/app/view_scaffold.dart';
+
+class StubView extends StatefulWidget {
+
+  const StubView({
+    Key key,
+    @required this.viewModel,
+    @required this.isFilter,
+  }) : super(key: key);
+
+  final StubViewVM viewModel;
+  final bool isFilter;
+
+  @override
+  _StubViewState createState() => new _StubViewState();
+}
+
+class _StubViewState extends State<StubView> {
+  @override
+  Widget build(BuildContext context) {
+    final viewModel = widget.viewModel;
+    final stub = viewModel.stub;
+
+    return ViewScaffold(
+      isFilter: widget.isFilter,
+      entity: stub,
+      onBackPressed: () => viewModel.onBackPressed(),
+      body: ScrollableListView(
+        children: <Widget>[
+        ],
+      ),
+    );
+  }
+}

@@ -1,0 +1,76 @@
+import 'dart:convert';
+import 'dart:core';
+import 'package:built_collection/built_collection.dart';
+import 'package:invoiceninja_flutter/constants.dart';
+import 'package:invoiceninja_flutter/data/models/serializers.dart';
+import 'package:invoiceninja_flutter/redux/app/app_state.dart';
+import 'package:invoiceninja_flutter/data/models/models.dart';
+import 'package:invoiceninja_flutter/data/web_client.dart';
+
+class StubRepository {
+
+  const StubRepository({
+    this.webClient = const WebClient(),
+  });
+
+  final WebClient webClient;
+
+  Future<StubEntity> loadItem(
+      Credentials credentials, String entityId) async {
+    final dynamic response = await webClient.get(
+        '${credentials.url}/stubs/$entityId', credentials.token);
+
+    final StubItemResponse stubResponse =
+        serializers.deserializeWith(StubItemResponse.serializer, response);
+
+    return stubResponse.data;
+  }
+
+  Future<BuiltList<StubEntity>> loadList(Credentials credentials) async {
+    final String url = credentials.url + '/stubs?';
+    final dynamic response = await webClient.get(url, credentials.token);
+
+    final StubListResponse stubResponse =
+        serializers.deserializeWith(StubListResponse.serializer, response);
+
+    return stubResponse.data;
+  }
+  
+    Future<List<StubEntity>> bulkAction(
+        Credentials credentials, List<String> ids, EntityAction action) async {
+        if (ids.length > kMaxEntitiesPerBulkAction && action.applyMaxLimit) {
+          ids = ids.sublist(0, kMaxEntitiesPerBulkAction);
+      }
+
+        final url = credentials.url + '/stubs/bulk?per_page=$kMaxEntitiesPerBulkAction';
+        final dynamic response = await webClient.post(url, credentials.token,
+            data: json.encode({'ids': ids, 'action': action.toApiParam()}));
+
+      final StubListResponse stubResponse =
+      serializers.deserializeWith(StubListResponse.serializer, response);
+    
+      return stubResponse.data.toList();
+    }
+
+  
+  Future<StubEntity> saveData(
+      Credentials credentials, StubEntity stub) async {
+    final data = serializers.serializeWith(StubEntity.serializer, stub);
+    dynamic response;
+
+    if (stub.isNew) {
+      response = await webClient.post(
+          credentials.url + '/stubs',
+          credentials.token,
+          data: json.encode(data));
+    } else {
+      final url = '${credentials.url}/stubs/${stub.id}';
+      response = await webClient.put(url, credentials.token, data: json.encode(data));
+    }
+
+    final StubItemResponse stubResponse =
+    serializers.deserializeWith(StubItemResponse.serializer, response);
+
+    return stubResponse.data;
+  }
+}

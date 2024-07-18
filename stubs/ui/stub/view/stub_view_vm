@@ -1,0 +1,87 @@
+import 'dart:async';
+import 'package:invoiceninja_flutter/redux/app/app_actions.dart';
+import 'package:flutter/material.dart';
+import 'package:invoiceninja_flutter/utils/completers.dart';
+import 'package:invoiceninja_flutter/utils/localization.dart';
+import 'package:redux/redux.dart';
+import 'package:invoiceninja_flutter/redux/ui/ui_actions.dart';
+import 'package:invoiceninja_flutter/ui/stub/stub_screen.dart';
+import 'package:flutter_redux/flutter_redux.dart';
+import 'package:invoiceninja_flutter/redux/stub/stub_actions.dart';
+import 'package:invoiceninja_flutter/data/models/models.dart';
+import 'package:invoiceninja_flutter/ui/stub/view/stub_view.dart';
+import 'package:invoiceninja_flutter/redux/app/app_state.dart';
+
+class StubViewScreen extends StatelessWidget {
+  const StubViewScreen({Key key, this.isFilter = false,}) : super(key: key);
+  static const String route = '/stub/view';
+  final bool isFilter;
+
+  @override
+  Widget build(BuildContext context) {
+    return StoreConnector<AppState, StubViewVM>(
+      converter: (Store<AppState> store) {
+        return StubViewVM.fromStore(store);
+      },
+      builder: (context, vm) {
+        return StubView(
+          viewModel: vm,
+          isFilter: isFilter,
+        );
+      },
+    );
+  }
+}
+
+class StubViewVM {
+
+  StubViewVM({
+    @required this.state,
+    @required this.stub,
+    @required this.company,
+    @required this.onEntityAction,
+    @required this.onRefreshed,
+    @required this.isSaving,
+    @required this.isLoading,
+    @required this.isDirty,
+    @required this.onBackPressed,
+  });
+
+  factory StubViewVM.fromStore(Store<AppState> store) {
+    final state = store.state;
+    final stub = state.stubState.map[state.stubUIState.selectedId] ??
+        StubEntity(id: state.stubUIState.selectedId);
+
+    Future<Null> _handleRefresh(BuildContext context) {
+      final completer = snackBarCompleter<Null>(
+          context, AppLocalization.of(context).refreshComplete);
+      store.dispatch(LoadStub(completer: completer, stubId: stub.id));
+      return completer.future;
+    }
+
+    return StubViewVM(
+        state: state,
+        company: state.company,
+        isSaving: state.isSaving,
+        isLoading: state.isLoading,
+        isDirty: stub.isNew,
+        stub: stub,
+        onRefreshed: (context) => _handleRefresh(context),
+              onBackPressed: () {
+        store.dispatch(UpdateCurrentRoute(StubScreen.route));
+      },
+      onEntityAction: (BuildContext context, EntityAction action) =>
+          handleEntitiesActions([stub], action, autoPop: true),
+        );
+  }
+
+  final AppState state;
+  final StubEntity stub;
+  final CompanyEntity company;
+  final Function(BuildContext, EntityAction) onEntityAction;
+  final Function(BuildContext) onRefreshed;
+  final Function onBackPressed;
+  final bool isSaving;
+  final bool isLoading;
+  final bool isDirty;
+}

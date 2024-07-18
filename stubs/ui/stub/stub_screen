@@ -1,0 +1,112 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_redux/flutter_redux.dart';
+import 'package:invoiceninja_flutter/data/models/models.dart';
+import 'package:invoiceninja_flutter/redux/app/app_actions.dart';
+import 'package:invoiceninja_flutter/redux/app/app_state.dart';
+import 'package:invoiceninja_flutter/redux/stub/stub_actions.dart';
+import 'package:invoiceninja_flutter/ui/app/app_bottom_bar.dart';
+import 'package:invoiceninja_flutter/ui/app/list_scaffold.dart';
+import 'package:invoiceninja_flutter/ui/app/list_filter.dart';
+import 'package:invoiceninja_flutter/ui/stub/stub_list_vm.dart';
+import 'package:invoiceninja_flutter/ui/stub/stub_presenter.dart';
+import 'package:invoiceninja_flutter/utils/localization.dart';
+
+import 'stub_screen_vm.dart';
+
+class StubScreen extends StatelessWidget {
+  const StubScreen({
+    Key key,
+    @required this.viewModel,
+  }) : super(key: key);
+
+  static const String route = '/stub';
+
+  final StubScreenVM viewModel;
+
+  @override
+  Widget build(BuildContext context) {
+    final store = StoreProvider.of<AppState>(context);
+    final state = store.state;
+    final userCompany = state.userCompany;
+    final localization = AppLocalization.of(context);
+
+    return ListScaffold(
+      entityType: EntityType.stub,
+      onHamburgerLongPress: () => store.dispatch(StartStubMultiselect()),
+      appBarTitle: ListFilter(
+        key: ValueKey('__filter_${state.stubListState.filterClearedAt}__'),
+        entityType: EntityType.stub,
+        entityIds: viewModel.stubList,
+        filter: state.stubListState.filter,
+        onFilterChanged: (value) {
+          store.dispatch(FilterStubs(value));
+        },
+        onSelectedState: (EntityState state, value) {
+          store.dispatch(FilterStubsByState(state));
+        },
+      ),
+        onCheckboxPressed: () {
+          if (store.state.stubListState.isInMultiselect()) {
+            store.dispatch(ClearStubMultiselect());
+          } else {
+            store.dispatch(StartStubMultiselect());
+          }
+        },
+      body: StubListBuilder(),
+      bottomNavigationBar: AppBottomBar(
+        entityType: EntityType.stub,
+        tableColumns: StubPresenter.getAllTableFields(userCompany),
+        defaultTableColumns: StubPresenter.getDefaultTableFields(userCompany),
+        onSelectedSortField: (value) {
+          store.dispatch(SortStubs(value));
+        },
+        sortFields: [
+          StubFields.name,
+          StubFields.balance,
+          StubFields.updatedAt,
+        ],
+        onSelectedState: (EntityState state, value) {
+          store.dispatch(FilterStubsByState(state));
+        },
+        onCheckboxPressed: () {
+          if (store.state.stubListState.isInMultiselect()) {
+            store.dispatch(ClearStubMultiselect());
+          } else {
+            store.dispatch(StartStubMultiselect());
+          }
+        },
+        customValues1: company.getCustomFieldValues(CustomFieldType.stub1,
+            excludeBlank: true),
+        customValues2: company.getCustomFieldValues(CustomFieldType.stub2,
+            excludeBlank: true),
+        customValues3: company.getCustomFieldValues(CustomFieldType.stub3,
+            excludeBlank: true),
+        customValues4: company.getCustomFieldValues(CustomFieldType.stub4,
+            excludeBlank: true),
+        onSelectedCustom1: (value) =>
+            store.dispatch(FilterStubsByCustom1(value)),
+        onSelectedCustom2: (value) =>
+            store.dispatch(FilterStubsByCustom2(value)),
+        onSelectedCustom3: (value) =>
+            store.dispatch(FilterStubsByCustom3(value)),
+        onSelectedCustom4: (value) =>
+            store.dispatch(FilterStubsByCustom4(value)),
+      ),
+      floatingActionButton: state.prefState.isMenuFloated && userCompany.canCreate(EntityType.stub)
+          ? FloatingActionButton(
+              heroTag: 'stub_fab',
+              backgroundColor: Theme.of(context).primaryColorDark,
+              onPressed: () {
+                createEntityByType(
+                    context: context, entityType: EntityType.stub);
+              },
+              child: Icon(
+                Icons.add,
+                color: Colors.white,
+              ),
+              tooltip: localization.newStub,
+            )
+          : null,
+    );
+  }
+}

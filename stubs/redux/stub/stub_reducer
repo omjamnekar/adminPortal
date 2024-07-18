@@ -1,0 +1,251 @@
+import 'package:redux/redux.dart';
+import 'package:built_collection/built_collection.dart';
+import 'package:invoiceninja_flutter/redux/app/app_actions.dart';
+import 'package:invoiceninja_flutter/data/models/models.dart';
+import 'package:invoiceninja_flutter/redux/company/company_actions.dart';
+import 'package:invoiceninja_flutter/redux/ui/entity_ui_state.dart';
+import 'package:invoiceninja_flutter/redux/stub/stub_actions.dart';
+import 'package:invoiceninja_flutter/redux/ui/list_ui_state.dart';
+import 'package:invoiceninja_flutter/redux/stub/stub_state.dart';
+
+EntityUIState stubUIReducer(StubUIState state, dynamic action) {
+  return state.rebuild((b) => b
+    ..listUIState.replace(stubListReducer(state.listUIState, action))
+    ..editing.replace(editingReducer(state.editing, action))
+    ..selectedId = selectedIdReducer(state.selectedId, action)
+    ..forceSelected = forceSelectedReducer(state.forceSelected, action)
+     ..tabIndex = tabIndexReducer(state.tabIndex, action)
+    );
+}
+
+final forceSelectedReducer = combineReducers<bool>([
+  TypedReducer<bool, ViewStub>((completer, action) => true),
+  TypedReducer<bool, ViewStubList>((completer, action) => false),
+  TypedReducer<bool, FilterStubsByState>((completer, action) => false),
+  TypedReducer<bool, FilterStubs>((completer, action) => false),
+  TypedReducer<bool, FilterStubsByCustom1>((completer, action) => false),
+  TypedReducer<bool, FilterStubsByCustom2>((completer, action) => false),
+  TypedReducer<bool, FilterStubsByCustom3>((completer, action) => false),
+  TypedReducer<bool, FilterStubsByCustom4>((completer, action) => false),
+]);
+
+
+final tabIndexReducer = combineReducers<int>([
+  TypedReducer<int, UpdateStubTab>((completer, action) {
+    return action.tabIndex;
+  }),
+  TypedReducer<int, PreviewEntity>((completer, action) {
+    return 0;
+  }),
+]);
+
+Reducer<String> selectedIdReducer = combineReducers([
+  TypedReducer<String, ArchiveStubsSuccess>((completer, action) => ''),
+  TypedReducer<String, DeleteStubsSuccess>((completer, action) => ''),
+  TypedReducer<String, PreviewEntity>((selectedId, action) =>
+      action.entityType == EntityType.stub
+          ? action.entityId
+          : selectedId),
+  TypedReducer<String, ViewStub>(
+      (String selectedId, dynamic action) => action.stubId),
+  TypedReducer<String, AddStubSuccess>(
+      (String selectedId, dynamic action) => action.stub.id),
+    TypedReducer<String, SelectCompany>((selectedId, action) => action.clearSelection ? '' : selectedId),
+  TypedReducer<String, ClearEntityFilter>((selectedId, action) => ''),
+  TypedReducer<String, SortStubs>((selectedId, action) => ''),
+  TypedReducer<String, FilterStubs>((selectedId, action) => ''),
+  TypedReducer<String, FilterStubsByState>((selectedId, action) => ''),
+  TypedReducer<String, FilterStubsByCustom1>((selectedId, action) => ''),
+  TypedReducer<String, FilterStubsByCustom2>((selectedId, action) => ''),
+  TypedReducer<String, FilterStubsByCustom3>((selectedId, action) => ''),
+  TypedReducer<String, FilterStubsByCustom4>((selectedId, action) => ''),
+  TypedReducer<String, FilterByEntity>((selectedId, action) =>
+        action
+                  .clearSelection
+              ? ''
+              : action.entityType == EntityType.stub ? action.entityId : selectedId),
+
+]);
+
+final editingReducer = combineReducers<StubEntity>([
+  TypedReducer<StubEntity, SaveStubSuccess>(_updateEditing),
+  TypedReducer<StubEntity, AddStubSuccess>(_updateEditing),
+  TypedReducer<StubEntity, RestoreStubsSuccess>((stubs, action) {
+                                                   return action.stubs[0];
+                                                 }),
+  TypedReducer<StubEntity, ArchiveStubsSuccess>((stubs, action) {
+                                                  return action.stubs[0];
+                                                }),
+  TypedReducer<StubEntity, DeleteStubsSuccess>((stubs, action) {
+                                                 return action.stubs[0];
+                                               }),
+  TypedReducer<StubEntity, EditStub>(_updateEditing),
+  TypedReducer<StubEntity, UpdateStub>((stub, action) {
+   return action.stub.rebuild((b) => b..isChanged = true);
+ }),
+  TypedReducer<StubEntity, DiscardChanges>(_clearEditing),
+]);
+
+StubEntity _clearEditing(StubEntity stub, dynamic action) {
+  return StubEntity();
+}
+
+StubEntity _updateEditing(StubEntity stub, dynamic action) {
+  return action.stub;
+}
+
+
+final stubListReducer = combineReducers<ListUIState>([
+  TypedReducer<ListUIState, SortStubs>(_sortStubs),
+  TypedReducer<ListUIState, FilterStubsByState>(_filterStubsByState),
+  TypedReducer<ListUIState, FilterStubs>(_filterStubs),
+  TypedReducer<ListUIState, FilterStubsByCustom1>(_filterStubsByCustom1),
+  TypedReducer<ListUIState, FilterStubsByCustom2>(_filterStubsByCustom2),
+  TypedReducer<ListUIState, StartStubMultiselect>(_startListMultiselect),
+  TypedReducer<ListUIState, AddToStubMultiselect>(_addToListMultiselect),
+  TypedReducer<ListUIState, RemoveFromStubMultiselect>(
+      _removeFromListMultiselect),
+  TypedReducer<ListUIState, ClearStubMultiselect>(_clearListMultiselect),
+  TypedReducer<ListUIState, ViewStubList>(_viewStubList),
+  TypedReducer<ListUIState, FilterByEntity>(
+    (state, action) => state.rebuild((b) => b
+      ..filter = null
+      ..filterClearedAt = DateTime.now().millisecondsSinceEpoch)),
+]);
+
+ListUIState _viewStubList(
+    ListUIState stubListState, ViewStubList action) {
+  return stubListState.rebuild((b) => b
+    ..selectedIds = null
+    ..filter = null
+    ..filterClearedAt = DateTime.now().millisecondsSinceEpoch);
+}
+
+ListUIState _filterStubsByCustom1(
+    ListUIState stubListState, FilterStubsByCustom1 action) {
+  if (stubListState.custom1Filters.contains(action.value)) {
+    return stubListState
+        .rebuild((b) => b..custom1Filters.remove(action.value));
+  } else {
+    return stubListState.rebuild((b) => b..custom1Filters.add(action.value));
+  }
+}
+
+ListUIState _filterStubsByCustom2(
+    ListUIState stubListState, FilterStubsByCustom2 action) {
+  if (stubListState.custom2Filters.contains(action.value)) {
+    return stubListState
+        .rebuild((b) => b..custom2Filters.remove(action.value));
+  } else {
+    return stubListState.rebuild((b) => b..custom2Filters.add(action.value));
+  }
+}
+
+ListUIState _filterStubsByState(
+    ListUIState stubListState, FilterStubsByState action) {
+  if (stubListState.stateFilters.contains(action.state)) {
+    return stubListState.rebuild((b) => b..stateFilters.remove(action.state));
+  } else {
+    return stubListState.rebuild((b) => b..stateFilters.add(action.state));
+  }
+}
+
+ListUIState _filterStubs(ListUIState stubListState, FilterStubs action) {
+  return stubListState.rebuild((b) => b..filter = action.filter
+  ..filterClearedAt = action.filter == null
+       ? DateTime.now().millisecondsSinceEpoch
+       : stubListState.filterClearedAt);
+}
+
+ListUIState _sortStubs(ListUIState stubListState, SortStubs action) {
+  return stubListState.rebuild((b) => b
+    ..sortAscending = b.sortField != action.field || !b.sortAscending
+    ..sortField = action.field);
+}
+
+ListUIState _startListMultiselect(
+    ListUIState productListState, StartStubMultiselect action) {
+  return productListState.rebuild((b) => b..selectedIds = ListBuilder());
+}
+
+ListUIState _addToListMultiselect(
+    ListUIState productListState, AddToStubMultiselect action) {
+  return productListState
+      .rebuild((b) => b..selectedIds.add(action.entity.id));
+}
+
+ListUIState _removeFromListMultiselect(
+    ListUIState productListState, RemoveFromStubMultiselect action) {
+  return productListState
+      .rebuild((b) => b..selectedIds.remove(action.entity.id));
+}
+
+ListUIState _clearListMultiselect(
+    ListUIState productListState, ClearStubMultiselect action) {
+  return productListState.rebuild((b) => b..selectedIds = null);
+}
+
+final stubsReducer = combineReducers<StubState>([
+  TypedReducer<StubState, SaveStubSuccess>(_updateStub),
+  TypedReducer<StubState, AddStubSuccess>(_addStub),
+  TypedReducer<StubState, LoadStubsSuccess>(_setLoadedStubs),
+  TypedReducer<StubState, LoadStubSuccess>(_setLoadedStub),
+  TypedReducer<StubState, LoadCompanySuccess>(_setLoadedCompany),
+  TypedReducer<StubState, ArchiveStubsSuccess>(_archiveStubSuccess),
+  TypedReducer<StubState, DeleteStubsSuccess>(_deleteStubSuccess),
+  TypedReducer<StubState, RestoreStubsSuccess>(_restoreStubSuccess),
+]);
+
+StubState _archiveStubSuccess(
+    StubState stubState, ArchiveStubsSuccess action) {
+  return stubState.rebuild((b) {
+    for (final stub in action.stubs) {
+      b.map[stub.id] = stub;
+    }
+  });
+}
+
+StubState _deleteStubSuccess(
+    StubState stubState, DeleteStubsSuccess action) {
+  return stubState.rebuild((b) {
+    for (final stub in action.stubs) {
+      b.map[stub.id] = stub;
+    }
+  });
+}
+
+StubState _restoreStubSuccess(
+    StubState stubState, RestoreStubsSuccess action) {
+  return stubState.rebuild((b) {
+    for (final stub in action.stubs) {
+      b.map[stub.id] = stub;
+    }
+  });
+}
+
+StubState _addStub(StubState stubState, AddStubSuccess action) {
+  return stubState.rebuild((b) => b
+    ..map[action.stub.id] = action.stub
+    ..list.add(action.stub.id));
+}
+
+StubState _updateStub(StubState stubState, SaveStubSuccess action) {
+  return stubState.rebuild((b) => b
+    ..map[action.stub.id] = action.stub);
+}
+
+StubState _setLoadedStub(
+    StubState stubState, LoadStubSuccess action) {
+  return stubState.rebuild((b) => b
+    ..map[action.stub.id] = action.stub);
+}
+
+StubState _setLoadedStubs(
+        StubState stubState, LoadStubsSuccess action) =>
+    stubState.loadStubs(action.stubs);
+
+StubState _setLoadedCompany(
+        StubState stubState, LoadCompanySuccess action) {
+ final company = action.userCompany.company;
+ return stubState.loadStubs(company.stubs);
+}

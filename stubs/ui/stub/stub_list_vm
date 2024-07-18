@@ -1,0 +1,119 @@
+import 'dart:async';
+import 'package:invoiceninja_flutter/ui/app/tables/entity_list.dart';
+import 'package:invoiceninja_flutter/ui/stub/stub_list_item.dart';
+import 'package:invoiceninja_flutter/ui/stub/stub_presenter.dart';
+import 'package:redux/redux.dart';
+import 'package:invoiceninja_flutter/redux/app/app_actions.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_redux/flutter_redux.dart';
+import 'package:built_collection/built_collection.dart';
+import 'package:invoiceninja_flutter/redux/ui/list_ui_state.dart';
+import 'package:invoiceninja_flutter/utils/completers.dart';
+import 'package:invoiceninja_flutter/utils/localization.dart';
+import 'package:invoiceninja_flutter/redux/stub/stub_selectors.dart';
+import 'package:invoiceninja_flutter/data/models/models.dart';
+import 'package:invoiceninja_flutter/redux/app/app_state.dart';
+import 'package:invoiceninja_flutter/redux/stub/stub_actions.dart';
+
+class StubListBuilder extends StatelessWidget {
+  const StubListBuilder({Key key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return StoreConnector<AppState, StubListVM>(
+      converter: StubListVM.fromStore,
+      builder: (context, viewModel) {
+        return EntityList(
+            entityType: EntityType.stub,
+            presenter: StubPresenter(),
+            state: viewModel.state,
+            entityList: viewModel.stubList,
+            tableColumns: viewModel.tableColumns,
+            onRefreshed: viewModel.onRefreshed,
+            onSortColumn: viewModel.onSortColumn,
+            onClearMultiselect: viewModel.onClearMultielsect,
+            itemBuilder: (BuildContext context, index) {
+              final state = viewModel.state;
+              final stubId = viewModel.stubList[index];
+              final stub = viewModel.stubMap[stubId];
+              final listState = state.getListState(EntityType.stub);
+              final isInMultiselect = listState.isInMultiselect();
+
+              return StubListItem(
+                user: viewModel.state.user,
+                filter: viewModel.filter,
+                stub: stub,
+                isChecked: isInMultiselect && listState.isSelected(stub.id),
+              );
+            });
+      },
+    );
+  }
+}
+
+class StubListVM {
+  StubListVM({
+    @required this.state,
+    @required this.userCompany,
+    @required this.stubList,
+    @required this.stubMap,
+    @required this.filter,
+    @required this.isLoading,
+    @required this.listState,
+    @required this.onRefreshed,
+    @required this.onEntityAction,
+    @required this.tableColumns,
+    @required this.onSortColumn,
+    @required this.onClearMultielsect,
+  });
+
+  static StubListVM fromStore(Store<AppState> store) {
+    Future<Null> _handleRefresh(BuildContext context) {
+      if (store.state.isLoading) {
+        return Future<Null>(null);
+      }
+      final completer = snackBarCompleter<Null>(
+          context, AppLocalization.of(context).refreshComplete);
+      store.dispatch(RefreshData(completer: completer));
+      return completer.future;
+    }
+
+    final state = store.state;
+
+    return StubListVM(
+        state: state,
+        userCompany: state.userCompany,
+        listState: state.stubListState,
+        stubList: memoizedFilteredStubList(state.getUISelection(EntityType.stub), 
+            state.stubState.map,
+            state.stubState.list, 
+            state.stubListState),
+        stubMap: state.stubState.map,
+        isLoading: state.isLoading,
+        filter: state.stubUIState.listUIState.filter,
+      onEntityAction:
+          (BuildContext context, List<BaseEntity> stubs, EntityAction action) =>
+          handleStubAction(context, stubs, action),
+        onRefreshed: (context) => _handleRefresh(context),
+              tableColumns:
+                  state.userCompany.settings?.getTableColumns(EntityType.stub) ??
+                      StubPresenter.getDefaultTableFields(state.userCompany),
+        onSortColumn: (field) => store.dispatch(SortStubs(field)),
+        onClearMultielsect: () => store.dispatch(ClearStubMultiselect()),
+    );
+  }
+
+  final AppState state;
+  final UserCompanyEntity userCompany;
+  final List<String> stubList;
+  final BuiltMap<String, StubEntity> stubMap;
+  final ListUIState listState;
+  final String filter;
+  final bool isLoading;
+  final Function(BuildContext) onRefreshed;
+  final Function(BuildContext, List<BaseEntity>, EntityAction) onEntityAction;
+  final List<String> tableColumns;
+  final Function(String) onSortColumn;
+  final Function onClearMultielsect;
+ }
